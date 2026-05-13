@@ -71,7 +71,7 @@
     function catLabel(catId) { return state.categories.find(c => c.id === catId)?.label || catId; }
 
     // ── 이미지 → Base64 압축 변환 (Storage 불필요) ──────────────
-    function compressImage(file, maxWidth = 900, quality = 0.72) {
+    function compressImage(file, maxWidth = 600, quality = 0.72) {
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = e => {
