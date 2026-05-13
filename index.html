@@ -4,15 +4,14 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>서울사무소 가이드북</title>
-
-  <!-- Firebase SDK -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getFirestore, collection, getDocs, addDoc, updateDoc, deleteDoc, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { getFirestore, collection, getDocs, addDoc, updateDoc, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
 
     // ✅ 여기에 Firebase 설정키를 붙여넣으세요
     const firebaseConfig = {
-   apiKey: "AIzaSyBa0r7SLyYACumy9_Kz7sxkYGGHkFAB_Ic",
+    apiKey: "AIzaSyBa0r7SLyYACumy9_Kz7sxkYGGHkFAB_Ic",
   authDomain: "seoul-office-guide.firebaseapp.com",
   projectId: "seoul-office-guide",
   storageBucket: "seoul-office-guide.firebasestorage.app",
@@ -42,21 +41,25 @@
       { id: "notice",  label: "공지사항",  colorIdx: 3 },
     ];
 
+    const DEFAULT_CARDS = [
+      { title: "회의실 예약 방법", icon: "🗓️", summary: "회의실 A/B/C 예약 절차 안내", content: "1. 사내 인트라넷 접속\n2. [시설 예약] 메뉴 클릭\n3. 원하는 날짜/시간/회의실 선택\n4. 사용 목적 입력 후 예약 완료\n\n※ 최대 4시간 단위 예약 가능\n※ 당일 취소는 오전 9시 이전에 해주세요", category: "space", pinned: false, updatedAt: "2025-05-10", imageUrl: "" },
+      { title: "주차 이용 안내", icon: "🚗", summary: "방문객/임직원 주차 안내", content: "• 임직원: B1~B2층 지정 구역 이용\n• 방문객: B3층 이용 (최대 3시간 무료)\n• 주차 등록은 1층 안내 데스크에서 진행\n\n※ 주차 공간 부족 시 인근 공영주차장 이용", category: "space", pinned: false, updatedAt: "2025-04-22", imageUrl: "" },
+      { title: "구두 청소 서비스", icon: "👟", summary: "매주 화/목 무료 구두 청소", content: "• 운영일: 매주 화요일, 목요일\n• 시간: 오전 9시 ~ 오후 5시\n• 위치: 1층 로비 우측 부스\n• 비용: 무료 (임직원 한정)\n\n※ 스웨이드, 뱀피 소재는 서비스 불가", category: "service", pinned: true, updatedAt: "2025-05-01", imageUrl: "" },
+      { title: "우편/택배 수령", icon: "📦", summary: "총무팀 경유 수령 안내", content: "• 수령 장소: 총무팀 (3층 302호)\n• 수령 시간: 평일 09:00 ~ 18:00\n• 도착 시 문자/메일로 개별 안내\n\n※ 개인 택배는 주 1회 일괄 수령 처리", category: "service", pinned: false, updatedAt: "2025-03-15", imageUrl: "" },
+      { title: "사내 카페테리아", icon: "☕", summary: "운영시간 및 이용 안내", content: "• 위치: 2층\n• 운영시간: 평일 08:00 ~ 19:00\n• 커피/음료: 임직원 월 10잔 무료\n• 식사: 점심 12:00~13:30 (할인 운영)\n\n※ 무료 음료는 앱에서 QR 코드 제시", category: "welfare", pinned: false, updatedAt: "2025-05-08", imageUrl: "" },
+      { title: "도서 대출 서비스", icon: "📚", summary: "사내 도서관 이용 방법", content: "• 위치: 4층 라운지\n• 대출 기간: 최대 2주\n• 대출 권수: 1인 3권\n• 신청: 인트라넷 [복지] > [도서 대출]\n\n※ 읽고 싶은 책 구매 신청도 가능", category: "welfare", pinned: false, updatedAt: "2025-02-20", imageUrl: "" },
+      { title: "2025년 하계 휴가 안내", icon: "🏖️", summary: "휴가 신청 기간 및 방법", content: "• 하계 휴가 기간: 7월 28일 ~ 8월 15일\n• 신청 기간: 6월 1일 ~ 6월 30일\n• 신청 방법: 인트라넷 > 근태 > 휴가 신청\n\n※ 팀 내 최대 50% 동시 사용 가능", category: "notice", pinned: true, updatedAt: "2025-05-12", imageUrl: "" },
+      { title: "사무소 Wi-Fi 안내", icon: "📶", summary: "네트워크 접속 정보", content: "• 임직원용: SEOUL-OFFICE-CORP\n  비밀번호: 총무팀 문의\n• 방문객용: SEOUL-OFFICE-GUEST\n  비밀번호: welcome2024\n\n※ 보안상 비밀번호는 정기적으로 변경됩니다", category: "notice", pinned: false, updatedAt: "2025-01-10", imageUrl: "" },
+    ];
+
     let state = {
-      categories: [],
-      cards: [],
-      isAdmin: false,
-      activeCategory: null,
-      selectedCard: null,
-      editCard: null,
-      showAddCard: false,
-      showCatManager: false,
-      showLogin: false,
-      searchQ: "",
-      pwInput: "",
-      pwError: false,
-      newCard: { title: "", icon: "📌", summary: "", content: "" },
+      categories: [], cards: [], isAdmin: false,
+      activeCategory: null, selectedCard: null, editCard: null,
+      showAddCard: false, showCatManager: false, showLogin: false,
+      searchQ: "", pwInput: "", pwError: false,
+      newCard: { title: "", icon: "📌", summary: "", content: "", imageUrl: "" },
       newCat: { label: "", colorIdx: 0 },
+      uploading: false,
     };
 
     function today() { return new Date().toISOString().slice(0, 10); }
@@ -65,40 +68,45 @@
       const cat = state.categories.find(c => c.id === catId);
       return cat ? COLOR_PRESETS[cat.colorIdx % COLOR_PRESETS.length] : COLOR_PRESETS[0];
     }
-    function catLabel(catId) {
-      return state.categories.find(c => c.id === catId)?.label || catId;
+    function catLabel(catId) { return state.categories.find(c => c.id === catId)?.label || catId; }
+
+    // ── 이미지 → Base64 압축 변환 (Storage 불필요) ──────────────
+    function compressImage(file, maxWidth = 900, quality = 0.72) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = e => {
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement("canvas");
+            let w = img.width, h = img.height;
+            if (w > maxWidth) { h = Math.round(h * maxWidth / w); w = maxWidth; }
+            canvas.width = w; canvas.height = h;
+            canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+            resolve(canvas.toDataURL("image/jpeg", quality));
+          };
+          img.onerror = reject;
+          img.src = e.target.result;
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
     }
 
     // ── Firestore helpers ──────────────────────────────────────
     async function loadCategories() {
       const snap = await getDocs(collection(db, "categories"));
       if (snap.empty) {
-        for (const c of DEFAULT_CATEGORIES) {
-          await addDoc(collection(db, "categories"), c);
-        }
+        for (const c of DEFAULT_CATEGORIES) await addDoc(collection(db, "categories"), c);
         return loadCategories();
       }
       state.categories = snap.docs.map(d => ({ _id: d.id, ...d.data() }));
       if (!state.activeCategory) state.activeCategory = state.categories[0]?.id || null;
     }
 
-    const DEFAULT_CARDS = [
-      { title: "회의실 예약 방법", icon: "🗓️", summary: "회의실 A/B/C 예약 절차 안내", content: "1. 사내 인트라넷 접속\n2. [시설 예약] 메뉴 클릭\n3. 원하는 날짜/시간/회의실 선택\n4. 사용 목적 입력 후 예약 완료\n\n※ 최대 4시간 단위 예약 가능\n※ 당일 취소는 오전 9시 이전에 해주세요", category: "space", pinned: false, updatedAt: "2025-05-10" },
-      { title: "주차 이용 안내", icon: "🚗", summary: "방문객/임직원 주차 안내", content: "• 임직원: B1~B2층 지정 구역 이용\n• 방문객: B3층 이용 (최대 3시간 무료)\n• 주차 등록은 1층 안내 데스크에서 진행\n\n※ 주차 공간 부족 시 인근 공영주차장 이용", category: "space", pinned: false, updatedAt: "2025-04-22" },
-      { title: "구두 청소 서비스", icon: "👟", summary: "매주 화/목 무료 구두 청소", content: "• 운영일: 매주 화요일, 목요일\n• 시간: 오전 9시 ~ 오후 5시\n• 위치: 1층 로비 우측 부스\n• 비용: 무료 (임직원 한정)\n\n※ 스웨이드, 뱀피 소재는 서비스 불가", category: "service", pinned: true, updatedAt: "2025-05-01" },
-      { title: "우편/택배 수령", icon: "📦", summary: "총무팀 경유 수령 안내", content: "• 수령 장소: 총무팀 (3층 302호)\n• 수령 시간: 평일 09:00 ~ 18:00\n• 도착 시 문자/메일로 개별 안내\n\n※ 개인 택배는 주 1회 일괄 수령 처리", category: "service", pinned: false, updatedAt: "2025-03-15" },
-      { title: "사내 카페테리아", icon: "☕", summary: "운영시간 및 이용 안내", content: "• 위치: 2층\n• 운영시간: 평일 08:00 ~ 19:00\n• 커피/음료: 임직원 월 10잔 무료\n• 식사: 점심 12:00~13:30 (할인 운영)\n\n※ 무료 음료는 앱에서 QR 코드 제시", category: "welfare", pinned: false, updatedAt: "2025-05-08" },
-      { title: "도서 대출 서비스", icon: "📚", summary: "사내 도서관 이용 방법", content: "• 위치: 4층 라운지\n• 대출 기간: 최대 2주\n• 대출 권수: 1인 3권\n• 신청: 인트라넷 [복지] > [도서 대출]\n\n※ 읽고 싶은 책 구매 신청도 가능", category: "welfare", pinned: false, updatedAt: "2025-02-20" },
-      { title: "2025년 하계 휴가 안내", icon: "🏖️", summary: "휴가 신청 기간 및 방법", content: "• 하계 휴가 기간: 7월 28일 ~ 8월 15일\n• 신청 기간: 6월 1일 ~ 6월 30일\n• 신청 방법: 인트라넷 > 근태 > 휴가 신청\n\n※ 팀 내 최대 50% 동시 사용 가능", category: "notice", pinned: true, updatedAt: "2025-05-12" },
-      { title: "사무소 Wi-Fi 안내", icon: "📶", summary: "네트워크 접속 정보", content: "• 임직원용: SEOUL-OFFICE-CORP\n  비밀번호: 총무팀 문의\n• 방문객용: SEOUL-OFFICE-GUEST\n  비밀번호: welcome2024\n\n※ 보안상 비밀번호는 정기적으로 변경됩니다", category: "notice", pinned: false, updatedAt: "2025-01-10" },
-    ];
-
     async function loadCards() {
       const snap = await getDocs(collection(db, "cards"));
       if (snap.empty) {
-        for (const c of DEFAULT_CARDS) {
-          await addDoc(collection(db, "cards"), c);
-        }
+        for (const c of DEFAULT_CARDS) await addDoc(collection(db, "cards"), c);
         return loadCards();
       }
       state.cards = snap.docs.map(d => ({ _id: d.id, ...d.data() }));
@@ -107,11 +115,8 @@
     async function saveCard(card) {
       const { _id, ...data } = card;
       data.updatedAt = today();
-      if (_id) {
-        await updateDoc(doc(db, "cards", _id), data);
-      } else {
-        await addDoc(collection(db, "cards"), data);
-      }
+      if (_id) await updateDoc(doc(db, "cards", _id), data);
+      else await addDoc(collection(db, "cards"), data);
       await loadCards();
     }
 
@@ -131,24 +136,24 @@
       await deleteDoc(doc(db, "categories", cat._id));
       const toDelete = state.cards.filter(c => c.category === catId);
       for (const c of toDelete) await deleteDoc(doc(db, "cards", c._id));
-      await loadCategories();
-      await loadCards();
+      await loadCategories(); await loadCards();
     }
 
     // ── Render ─────────────────────────────────────────────────
     function render() {
       const s = state;
       const activeCat = s.activeCategory || s.categories[0]?.id || "";
-      const allCards = s.cards;
       const filteredCards = s.searchQ.trim()
-        ? allCards.filter(c => c.title?.includes(s.searchQ) || c.summary?.includes(s.searchQ) || c.content?.includes(s.searchQ))
+        ? s.cards.filter(c => c.title?.includes(s.searchQ) || c.summary?.includes(s.searchQ) || c.content?.includes(s.searchQ))
         : null;
-      const catCards = filteredCards || [...(allCards.filter(c => c.category === activeCat && c.pinned)), ...(allCards.filter(c => c.category === activeCat && !c.pinned))];
+      const catCards = filteredCards || [
+        ...s.cards.filter(c => c.category === activeCat && c.pinned),
+        ...s.cards.filter(c => c.category === activeCat && !c.pinned)
+      ];
 
       document.getElementById("app").innerHTML = `
         <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;padding:1.5rem 1rem;max-width:720px;margin:0 auto;">
 
-          <!-- Header -->
           <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1.5rem;flex-wrap:wrap;gap:8px;">
             <div>
               <h1 style="margin:0;font-size:24px;font-weight:700;">🏢 서울사무소 가이드북</h1>
@@ -156,18 +161,17 @@
             </div>
             <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
               ${s.isAdmin ? `<span style="font-size:12px;background:#E6F1FB;color:#185FA5;padding:3px 10px;border-radius:20px;font-weight:700;">관리자 모드</span>` : ""}
-              ${s.isAdmin ? `<button onclick="openCatManager()" style="${btnStyle("#f5f5f5","#555")}">카테고리 관리</button>` : ""}
-              <button onclick="toggleAdmin()" style="${btnStyle("#fff","#333")}">${s.isAdmin ? "로그아웃" : "관리자"}</button>
+              ${s.isAdmin ? `<button onclick="openCatManager()" style="${btn()}">카테고리 관리</button>` : ""}
+              <button onclick="toggleAdmin()" style="${btn()}">${s.isAdmin ? "로그아웃" : "관리자"}</button>
             </div>
           </div>
 
-          <!-- Search -->
           <div style="position:relative;margin-bottom:1.25rem;">
-            <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:16px;color:#999;">🔍</span>
-            <input oninput="onSearch(this.value)" value="${s.searchQ}" placeholder="안내 내용 검색..." style="width:100%;padding:8px 10px 8px 34px;border:1px solid #ddd;border-radius:8px;font-size:14px;font-weight:500;box-sizing:border-box;" />
+            <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:16px;">🔍</span>
+            <input oninput="onSearch(this.value)" value="${s.searchQ}" placeholder="안내 내용 검색..."
+              style="width:100%;padding:8px 10px 8px 34px;border:1px solid #ddd;border-radius:8px;font-size:14px;font-weight:500;box-sizing:border-box;" />
           </div>
 
-          <!-- Category Tabs -->
           ${!s.searchQ ? `<div style="display:flex;gap:8px;margin-bottom:1.25rem;flex-wrap:wrap;">
             ${s.categories.map(cat => {
               const active = activeCat === cat.id;
@@ -176,25 +180,27 @@
             }).join("")}
           </div>` : `<p style="font-size:13px;font-weight:500;color:#888;margin-bottom:1rem;">"${s.searchQ}" 검색 결과 ${filteredCards.length}건</p>`}
 
-          <!-- Pinned banner -->
           ${!s.searchQ && catCards.some(c => c.pinned) ? `
             <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">
               <span style="font-size:13px;font-weight:700;color:${col(activeCat).badge};">📌 중요 공지</span>
               <div style="flex:1;height:1px;background:${col(activeCat).border};"></div>
             </div>` : ""}
 
-          <!-- Cards Grid -->
           <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-bottom:1.5rem;">
             ${catCards.map(card => {
               const c = col(card.category);
-              return `<div onclick="selectCard('${card._id}')" onmouseenter="this.style.background='${c.bg}'" onmouseleave="this.style.background='#fff'"
-                style="background:#fff;border:1px solid ${card.pinned ? c.badge : c.border};border-radius:12px;padding:1rem;cursor:pointer;position:relative;transition:background 0.15s;">
-                ${card.pinned ? `<span style="position:absolute;top:8px;right:8px;font-size:14px;">📌</span>` : ""}
-                <div style="font-size:40px;margin-bottom:10px;">${card.icon}</div>
-                <div style="font-weight:700;font-size:16px;color:#111;margin-bottom:4px;">${card.title}</div>
-                <div style="font-size:13px;font-weight:500;color:#666;line-height:1.5;margin-bottom:8px;">${card.summary}</div>
-                <div style="display:flex;justify-content:flex-end;">
-                  ${card.updatedAt ? `<span style="font-size:11px;color:#aaa;font-weight:500;">수정 ${fmt(card.updatedAt)}</span>` : ""}
+              return `<div onclick="selectCard('${card._id}')"
+                onmouseenter="this.style.background='${c.bg}'" onmouseleave="this.style.background='#fff'"
+                style="background:#fff;border:1px solid ${card.pinned?c.badge:c.border};border-radius:12px;overflow:hidden;cursor:pointer;position:relative;transition:background 0.15s;">
+                ${card.imageUrl ? `<img src="${card.imageUrl}" style="width:100%;height:120px;object-fit:cover;display:block;" />` : ""}
+                <div style="padding:1rem;">
+                  ${card.pinned ? `<span style="position:absolute;top:8px;right:8px;font-size:14px;${card.imageUrl?"background:rgba(255,255,255,0.85);border-radius:50%;padding:2px":""}">📌</span>` : ""}
+                  <div style="font-size:40px;margin-bottom:10px;">${card.icon}</div>
+                  <div style="font-weight:700;font-size:16px;color:#111;margin-bottom:4px;">${card.title}</div>
+                  <div style="font-size:13px;font-weight:500;color:#666;line-height:1.5;margin-bottom:8px;">${card.summary}</div>
+                  <div style="display:flex;justify-content:flex-end;">
+                    ${card.updatedAt ? `<span style="font-size:11px;color:#aaa;font-weight:500;">수정 ${fmt(card.updatedAt)}</span>` : ""}
+                  </div>
                 </div>
               </div>`;
             }).join("")}
@@ -205,29 +211,43 @@
               </div>` : ""}
           </div>
 
-          <!-- Modal: Detail -->
           ${s.selectedCard && !s.editCard ? detailModal(s.selectedCard) : ""}
-          <!-- Modal: Edit -->
           ${s.editCard ? editModal(s.editCard) : ""}
-          <!-- Modal: Add Card -->
           ${s.showAddCard ? addCardModal() : ""}
-          <!-- Modal: Category Manager -->
           ${s.showCatManager ? catManagerModal() : ""}
-          <!-- Modal: Login -->
           ${s.showLogin ? loginModal() : ""}
         </div>`;
     }
 
-    function btnStyle(bg, color) {
-      return `font-size:13px;padding:6px 14px;border-radius:8px;border:1px solid #ddd;background:${bg};cursor:pointer;color:${color};font-weight:600;`;
-    }
+    function btn() { return `font-size:13px;padding:6px 14px;border-radius:8px;border:1px solid #ddd;background:#fff;cursor:pointer;color:#333;font-weight:600;`; }
 
-    function overlay(content) {
+    function overlay(content, narrow) {
       return `<div style="position:fixed;inset:0;background:rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;z-index:100;padding:1rem;">
-        <div style="background:#ffffff;border-radius:16px;padding:1.5rem;max-width:480px;width:100%;max-height:85vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.2);">
+        <div style="background:#fff;border-radius:16px;padding:1.5rem;max-width:${narrow?320:480}px;width:100%;max-height:85vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.2);">
           ${content}
         </div>
       </div>`;
+    }
+
+    function inp(extra) { return `width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:8px;font-size:14px;font-weight:500;box-sizing:border-box;margin-bottom:10px;${extra||""}`; }
+    function lbl(text) { return `<label style="font-size:13px;font-weight:600;color:#666;">${text}</label>`; }
+
+    // 이미지 업로드 UI 공통 컴포넌트
+    function imageUploadUI(currentUrl, inputName) {
+      return `
+        ${lbl("이미지 첨부 (선택)")}
+        <div style="margin-bottom:12px;">
+          ${currentUrl ? `
+            <div style="position:relative;margin-bottom:8px;">
+              <img src="${currentUrl}" style="width:100%;max-height:180px;object-fit:cover;border-radius:8px;border:1px solid #eee;" />
+              <button onclick="${inputName}RemoveImage()" style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,0.55);color:#fff;border:none;border-radius:50%;width:26px;height:26px;cursor:pointer;font-size:14px;line-height:1;">✕</button>
+            </div>` : ""}
+          <label style="display:flex;align-items:center;gap:8px;padding:10px 14px;border:1.5px dashed #ccc;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;color:#555;">
+            📎 이미지 파일 선택 (JPG, PNG, GIF)
+            <input type="file" accept="image/*" onchange="${inputName}UploadImage(this)" style="display:none;" />
+          </label>
+          <p id="${inputName}-upload-status" style="font-size:12px;color:#888;margin:4px 0 0;"></p>
+        </div>`;
     }
 
     function detailModal(card) {
@@ -248,6 +268,7 @@
           <button onclick="closeDetail()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#999;">✕</button>
         </div>
         <p style="font-size:13px;font-weight:500;color:#666;margin-bottom:1rem;">${card.summary}</p>
+        ${card.imageUrl ? `<img src="${card.imageUrl}" style="width:100%;max-height:240px;object-fit:cover;border-radius:10px;margin-bottom:1rem;border:1px solid #eee;" />` : ""}
         <div style="background:#f7f7f7;border-radius:10px;padding:1rem;font-size:14px;font-weight:500;line-height:1.8;white-space:pre-line;color:#222;">${card.content}</div>
         ${state.isAdmin ? `
           <div style="display:flex;gap:8px;margin-top:1rem;flex-wrap:wrap;">
@@ -260,20 +281,15 @@
       `);
     }
 
-    function inputRow(label, key, value, ph = "") {
-      return `<div><label style="font-size:13px;font-weight:600;color:#666;">${label}</label>
-        <input oninput="updateEdit('${key}',this.value)" value="${(value||"").replace(/"/g,'&quot;')}" placeholder="${ph}"
-          style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:8px;font-size:14px;font-weight:500;box-sizing:border-box;margin-bottom:10px;" /></div>`;
-    }
-
     function editModal(card) {
       return overlay(`
         <h2 style="margin:0 0 1rem;font-size:18px;font-weight:700;">항목 수정</h2>
-        ${inputRow("아이콘","icon",card.icon)}
-        ${inputRow("제목","title",card.title)}
-        ${inputRow("요약","summary",card.summary)}
-        <label style="font-size:13px;font-weight:600;color:#666;">내용</label>
-        <textarea oninput="updateEdit('content',this.value)" style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:8px;font-size:14px;font-weight:500;box-sizing:border-box;min-height:130px;resize:vertical;margin-bottom:10px;">${card.content||""}</textarea>
+        ${lbl("아이콘")}<input oninput="updateEditField('icon',this.value)" value="${(card.icon||"").replace(/"/g,'&quot;')}" style="${inp()}" />
+        ${lbl("제목")}<input oninput="updateEditField('title',this.value)" value="${(card.title||"").replace(/"/g,'&quot;')}" style="${inp()}" />
+        ${lbl("요약")}<input oninput="updateEditField('summary',this.value)" value="${(card.summary||"").replace(/"/g,'&quot;')}" style="${inp()}" />
+        ${lbl("내용")}<textarea oninput="updateEditField('content',this.value)" style="${inp("min-height:120px;resize:vertical;")}">${card.content||""}</textarea>
+        ${imageUploadUI(card.imageUrl || "", "edit")}
+        <div id="edit-uploading" style="display:none;text-align:center;padding:8px;font-size:13px;color:#185FA5;font-weight:600;">⏳ 이미지 업로드 중...</div>
         <div style="display:flex;gap:8px;">
           <button onclick="saveEdit()" style="flex:1;padding:10px;border-radius:8px;background:#185FA5;color:#fff;border:none;cursor:pointer;font-size:14px;font-weight:700;">저장</button>
           <button onclick="cancelEdit()" style="flex:1;padding:10px;border-radius:8px;border:1px solid #ddd;background:#f5f5f5;cursor:pointer;font-size:14px;font-weight:600;">취소</button>
@@ -285,11 +301,12 @@
       const nc = state.newCard;
       return overlay(`
         <h2 style="margin:0 0 1rem;font-size:18px;font-weight:700;">새 항목 추가 — ${catLabel(state.activeCategory)}</h2>
-        ${inputRow("아이콘 (이모지)","newIcon",nc.icon)}
-        ${inputRow("제목","newTitle",nc.title,"예: 헬스장 이용 안내")}
-        ${inputRow("요약 (카드에 표시)","newSummary",nc.summary,"한 줄 요약")}
-        <label style="font-size:13px;font-weight:600;color:#666;">상세 내용</label>
-        <textarea oninput="updateNew('content',this.value)" style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:8px;font-size:14px;font-weight:500;box-sizing:border-box;min-height:130px;resize:vertical;margin-bottom:10px;">${nc.content||""}</textarea>
+        ${lbl("아이콘 (이모지)")}<input oninput="updateNewField('icon',this.value)" value="${nc.icon}" placeholder="😊" style="${inp()}" />
+        ${lbl("제목")}<input oninput="updateNewField('title',this.value)" value="${(nc.title||"").replace(/"/g,'&quot;')}" placeholder="예: 헬스장 이용 안내" style="${inp()}" />
+        ${lbl("요약 (카드에 표시)")}<input oninput="updateNewField('summary',this.value)" value="${(nc.summary||"").replace(/"/g,'&quot;')}" placeholder="한 줄 요약" style="${inp()}" />
+        ${lbl("내용")}<textarea oninput="updateNewField('content',this.value)" style="${inp("min-height:120px;resize:vertical;")}" placeholder="상세 안내 내용 입력">${nc.content||""}</textarea>
+        ${imageUploadUI(nc.imageUrl || "", "new")}
+        <div id="new-uploading" style="display:none;text-align:center;padding:8px;font-size:13px;color:#185FA5;font-weight:600;">⏳ 이미지 업로드 중...</div>
         <div style="display:flex;gap:8px;">
           <button onclick="addCard()" ${!nc.title?"disabled":""} style="flex:1;padding:10px;border-radius:8px;background:${nc.title?"#185FA5":"#eee"};color:${nc.title?"#fff":"#aaa"};border:none;cursor:${nc.title?"pointer":"default"};font-size:14px;font-weight:700;">추가</button>
           <button onclick="closeAddCard()" style="flex:1;padding:10px;border-radius:8px;border:1px solid #ddd;background:#f5f5f5;cursor:pointer;font-size:14px;font-weight:600;">취소</button>
@@ -309,19 +326,16 @@
             <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;background:#f7f7f7;margin-bottom:8px;">
               <div style="width:14px;height:14px;border-radius:4px;background:${COLOR_PRESETS[cat.colorIdx%COLOR_PRESETS.length].badge};flex-shrink:0;"></div>
               <span style="flex:1;font-weight:600;font-size:14px;">${cat.label}</span>
-              <span style="font-size:12px;color:#aaa;font-weight:500;">${state.cards.filter(c=>c.category===cat.id).length}개 항목</span>
+              <span style="font-size:12px;color:#aaa;">${state.cards.filter(c=>c.category===cat.id).length}개 항목</span>
               <button onclick="deleteCat('${cat.id}')" style="background:none;border:none;font-size:16px;cursor:pointer;color:#E24B4A;">🗑️</button>
             </div>`).join("")}
         </div>
         <div style="border-top:1px solid #eee;padding-top:1rem;">
           <p style="margin:0 0 10px;font-size:14px;font-weight:700;">새 카테고리 추가</p>
-          <label style="font-size:13px;font-weight:600;color:#666;">카테고리 이름</label>
-          <input oninput="updateNewCat('label',this.value)" value="${nc.label}" placeholder="예: 식당/카페"
-            style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:8px;font-size:14px;font-weight:500;box-sizing:border-box;margin-bottom:10px;" />
-          <label style="font-size:13px;font-weight:600;color:#666;">색상 선택</label>
+          ${lbl("카테고리 이름")}<input oninput="updateNewCatField('label',this.value)" value="${nc.label}" placeholder="예: 식당/카페" style="${inp()}" />
+          ${lbl("색상 선택")}
           <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
-            ${COLOR_PRESETS.map((c,i) => `
-              <div onclick="updateNewCat('colorIdx',${i})" style="width:28px;height:28px;border-radius:8px;background:${c.badge};cursor:pointer;border:${nc.colorIdx===i?"2.5px solid #333":"2.5px solid transparent"};"></div>`).join("")}
+            ${COLOR_PRESETS.map((c,i)=>`<div onclick="updateNewCatField('colorIdx',${i})" style="width:28px;height:28px;border-radius:8px;background:${c.badge};cursor:pointer;border:${nc.colorIdx===i?"2.5px solid #333":"2.5px solid transparent"};"></div>`).join("")}
           </div>
           <div style="padding:8px 12px;border-radius:10px;background:${COLOR_PRESETS[nc.colorIdx].bg};border:1px solid ${COLOR_PRESETS[nc.colorIdx].border};margin-bottom:12px;">
             <span style="font-weight:700;font-size:14px;color:${COLOR_PRESETS[nc.colorIdx].text};">${nc.label||"미리보기"}</span>
@@ -332,89 +346,116 @@
     }
 
     function loginModal() {
-      return `<div style="position:fixed;inset:0;background:rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;z-index:120;padding:1rem;">
-        <div style="background:#ffffff;border-radius:16px;padding:1.5rem;max-width:320px;width:100%;box-shadow:0 8px 32px rgba(0,0,0,0.2);">
-          <h2 style="margin:0 0 1rem;font-size:18px;font-weight:700;">관리자 로그인</h2>
-          <input id="pw-input" type="password" placeholder="비밀번호 입력" value="${state.pwInput}"
-            oninput="setPwInput(this.value)"
-            onkeydown="if(event.key==='Enter')doLogin()"
-            style="width:100%;padding:8px 10px;border:1px solid ${state.pwError?"#E24B4A":"#ddd"};border-radius:8px;font-size:14px;font-weight:500;box-sizing:border-box;margin-bottom:${state.pwError?4:10}px;" />
-          ${state.pwError ? `<p style="color:#A32D2D;font-size:13px;font-weight:600;margin:0 0 10px;">비밀번호가 틀렸습니다</p>` : ""}
-          <div style="display:flex;gap:8px;">
-            <button onclick="doLogin()" style="flex:1;padding:10px;border-radius:8px;background:#185FA5;color:#fff;border:none;cursor:pointer;font-size:14px;font-weight:700;">로그인</button>
-            <button onclick="closeLogin()" style="flex:1;padding:10px;border-radius:8px;border:1px solid #ddd;background:#f5f5f5;cursor:pointer;font-size:14px;font-weight:600;">취소</button>
-          </div>
-          <p style="font-size:12px;color:#aaa;margin-top:10px;text-align:center;">초기 비밀번호: admin1234</p>
+      return overlay(`
+        <h2 style="margin:0 0 1rem;font-size:18px;font-weight:700;">관리자 로그인</h2>
+        <input id="pw-input" type="password" placeholder="비밀번호 입력" value="${state.pwInput}"
+          oninput="setPwInput(this.value)"
+          onkeydown="if(event.key==='Enter')doLogin()"
+          style="${inp(state.pwError?"border-color:#E24B4A;":"")}" />
+        ${state.pwError ? `<p style="color:#A32D2D;font-size:13px;font-weight:600;margin:-6px 0 10px;">비밀번호가 틀렸습니다</p>` : ""}
+        <div style="display:flex;gap:8px;">
+          <button onclick="doLogin()" style="flex:1;padding:10px;border-radius:8px;background:#185FA5;color:#fff;border:none;cursor:pointer;font-size:14px;font-weight:700;">로그인</button>
+          <button onclick="closeLogin()" style="flex:1;padding:10px;border-radius:8px;border:1px solid #ddd;background:#f5f5f5;cursor:pointer;font-size:14px;font-weight:600;">취소</button>
         </div>
-      </div>`;
+        <p style="font-size:12px;color:#aaa;margin-top:10px;text-align:center;">초기 비밀번호: admin1234</p>
+      `, true);
     }
 
-    // ── Event handlers (global) ────────────────────────────────
-    window.toggleAdmin  = () => { state.isAdmin ? (state.isAdmin=false, render()) : (state.showLogin=true, render()); };
-    window.doLogin      = () => {
-      if (state.pwInput === ADMIN_PASSWORD) { state.isAdmin=true; state.showLogin=false; state.pwInput=""; state.pwError=false; }
-      else state.pwError = true;
+    // ── Event handlers ─────────────────────────────────────────
+    window.toggleAdmin    = () => { state.isAdmin ? (state.isAdmin=false,render()) : (state.showLogin=true,render()); };
+    window.setPwInput     = (v) => { state.pwInput=v; state.pwError=false; };
+    window.doLogin        = () => {
+      if (state.pwInput===ADMIN_PASSWORD) { state.isAdmin=true; state.showLogin=false; state.pwInput=""; state.pwError=false; }
+      else state.pwError=true;
       render();
     };
-    window.closeLogin   = () => { state.showLogin=false; state.pwInput=""; state.pwError=false; render(); };
-    window.setPwInput   = (v) => { state.pwInput = v; state.pwError = false; };
-    window.onSearch     = (v) => { state.searchQ=v; render(); };
-    window.setCategory  = (id) => { state.activeCategory=id; render(); };
-    window.selectCard   = (id) => { state.selectedCard=state.cards.find(c=>c._id===id)||null; render(); };
-    window.closeDetail  = () => { state.selectedCard=null; render(); };
-    window.openEdit     = () => { state.editCard={...state.selectedCard}; render(); };
-    window.cancelEdit   = () => { state.editCard=null; render(); };
-    window.updateEdit   = (k,v) => { state.editCard[k]=v; };
-    window.saveEdit     = async () => { await saveCard(state.editCard); state.editCard=null; state.selectedCard=null; render(); };
-    window.togglePin    = async () => { const c={...state.selectedCard,pinned:!state.selectedCard.pinned}; await saveCard(c); state.selectedCard=c; render(); };
-    window.deleteCard   = async () => { if(!confirm("삭제할까요?"))return; await removeCard(state.selectedCard); state.selectedCard=null; render(); };
-    window.openAddCard  = () => { state.showAddCard=true; render(); };
-    window.closeAddCard = () => { state.showAddCard=false; render(); };
-    window.updateNew    = (k,v) => { state.newCard[k]=v; };
-    window.addCard      = async () => {
-      const nc = state.newCard;
-      if (!nc.title) return;
-      await saveCard({ title:nc.title, icon:nc.icon||"📌", summary:nc.summary, content:nc.content, category:state.activeCategory, pinned:false });
-      state.newCard={ title:"", icon:"📌", summary:"", content:"" };
-      state.showAddCard=false;
-      render();
+    window.closeLogin     = () => { state.showLogin=false; state.pwInput=""; state.pwError=false; render(); };
+    window.onSearch       = (v) => { state.searchQ=v; render(); };
+    window.setCategory    = (id) => { state.activeCategory=id; render(); };
+    window.selectCard     = (id) => { state.selectedCard=state.cards.find(c=>c._id===id)||null; render(); };
+    window.closeDetail    = () => { state.selectedCard=null; render(); };
+    window.openEdit       = () => { state.editCard={...state.selectedCard}; render(); };
+    window.cancelEdit     = () => { state.editCard=null; render(); };
+    window.updateEditField = (k,v) => { if(state.editCard) state.editCard[k]=v; };
+    window.saveEdit       = async () => { await saveCard(state.editCard); state.editCard=null; state.selectedCard=null; render(); };
+    window.togglePin      = async () => { const c={...state.selectedCard,pinned:!state.selectedCard.pinned}; await saveCard(c); state.selectedCard=c; render(); };
+    window.deleteCard     = async () => { if(!confirm("삭제할까요?"))return; await removeCard(state.selectedCard); state.selectedCard=null; render(); };
+    window.openAddCard    = () => { state.showAddCard=true; render(); };
+    window.closeAddCard   = () => { state.showAddCard=false; state.newCard={title:"",icon:"📌",summary:"",content:"",imageUrl:""}; render(); };
+    window.updateNewField = (k,v) => { state.newCard[k]=v; };
+    window.addCard        = async () => {
+      const nc=state.newCard;
+      if(!nc.title) return;
+      await saveCard({title:nc.title,icon:nc.icon||"📌",summary:nc.summary,content:nc.content,category:state.activeCategory,pinned:false,imageUrl:nc.imageUrl||""});
+      state.newCard={title:"",icon:"📌",summary:"",content:"",imageUrl:""};
+      state.showAddCard=false; render();
     };
-    window.updateNewCat  = (k,v) => { state.newCat[k]=k==="colorIdx"?parseInt(v):v; render(); };
+    window.updateNewCatField = (k,v) => { state.newCat[k]=k==="colorIdx"?parseInt(v):v; render(); };
     window.openCatManager  = () => { state.showCatManager=true; render(); };
     window.closeCatManager = () => { state.showCatManager=false; render(); };
-    window.addCategory  = async () => {
-      const nc = state.newCat;
-      if (!nc.label.trim()) return;
-      const id = nc.label.trim().replace(/\s+/g,"_") + "_" + Date.now();
-      await saveCat({ id, label:nc.label.trim(), colorIdx:nc.colorIdx });
-      state.newCat={ label:"", colorIdx:0 };
-      render();
+    window.addCategory    = async () => {
+      const nc=state.newCat;
+      if(!nc.label.trim()) return;
+      const id=nc.label.trim().replace(/\s+/g,"_")+"_"+Date.now();
+      await saveCat({id,label:nc.label.trim(),colorIdx:nc.colorIdx});
+      state.newCat={label:"",colorIdx:0}; render();
     };
     window.deleteCat = async (catId) => {
-      if (!confirm(`"${catLabel(catId)}" 카테고리를 삭제할까요?\n포함된 항목도 모두 삭제됩니다.`)) return;
+      if(!confirm(`"${catLabel(catId)}" 카테고리를 삭제할까요?\n포함된 항목도 모두 삭제됩니다.`)) return;
       await removeCat(catId);
-      if (state.activeCategory===catId) state.activeCategory=state.categories[0]?.id||null;
+      if(state.activeCategory===catId) state.activeCategory=state.categories[0]?.id||null;
       render();
     };
 
-    // input 이벤트에서 updateEdit의 newIcon/newTitle/newSummary 처리
-    window.updateEdit = (k, v) => {
-      if (k.startsWith("new")) {
-        const key = k.replace("new","").toLowerCase();
-        state.newCard[key] = v;
-      } else if (state.editCard) {
-        state.editCard[k] = v;
+    // 이미지 업로드 핸들러 (새 카드)
+    // 이미지 핸들러 (새 카드)
+    window.newUploadImage = async (input) => {
+      const file = input.files[0];
+      if (!file) return;
+      const status = document.getElementById("new-upload-status");
+      const uploading = document.getElementById("new-uploading");
+      if (uploading) uploading.style.display = "block";
+      if (status) status.textContent = "압축 중...";
+      try {
+        const base64 = await compressImage(file);
+        state.newCard.imageUrl = base64;
+        if (uploading) uploading.style.display = "none";
+        if (status) status.textContent = "✅ 이미지 준비 완료!";
+        render();
+      } catch(e) {
+        if (uploading) uploading.style.display = "none";
+        if (status) status.textContent = "❌ 실패. 다른 이미지를 시도해 주세요.";
       }
     };
+    window.newRemoveImage = () => { state.newCard.imageUrl = ""; render(); };
 
-    // ── Init ──────────────────────────────────────────────────
+    // 이미지 핸들러 (수정)
+    window.editUploadImage = async (input) => {
+      const file = input.files[0];
+      if (!file) return;
+      const status = document.getElementById("edit-upload-status");
+      const uploading = document.getElementById("edit-uploading");
+      if (uploading) uploading.style.display = "block";
+      if (status) status.textContent = "압축 중...";
+      try {
+        const base64 = await compressImage(file);
+        if (state.editCard) state.editCard.imageUrl = base64;
+        if (uploading) uploading.style.display = "none";
+        if (status) status.textContent = "✅ 이미지 준비 완료!";
+        render();
+      } catch(e) {
+        if (uploading) uploading.style.display = "none";
+        if (status) status.textContent = "❌ 실패. 다른 이미지를 시도해 주세요.";
+      }
+    };
+    window.editRemoveImage = () => { if(state.editCard) state.editCard.imageUrl=""; render(); };
+
     async function init() {
       document.getElementById("app").innerHTML = `<p style="padding:2rem;text-align:center;color:#888;font-size:15px;">불러오는 중...</p>`;
       await loadCategories();
       await loadCards();
       render();
     }
-
     init();
   </script>
 </head>
