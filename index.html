@@ -12,12 +12,12 @@
 
     // ✅ 여기에 Firebase 설정키를 붙여넣으세요
     const firebaseConfig = {
-     apiKey: "AIzaSyBa0r7SLyYACumy9_Kz7sxkYGGHkFAB_Ic",
-     authDomain: "seoul-office-guide.firebaseapp.com",
-     projectId: "seoul-office-guide",
-     storageBucket: "seoul-office-guide.firebasestorage.app",
-     messagingSenderId: "560009266906",
-     appId: "1:560009266906:web:bd84e1c99e03645b5807e3"
+      apiKey: "여기에_붙여넣기",
+      authDomain: "여기에_붙여넣기",
+      projectId: "여기에_붙여넣기",
+      storageBucket: "여기에_붙여넣기",
+      messagingSenderId: "여기에_붙여넣기",
+      appId: "여기에_붙여넣기"
     };
 
     const app = initializeApp(firebaseConfig);
@@ -82,8 +82,25 @@
       if (!state.activeCategory) state.activeCategory = state.categories[0]?.id || null;
     }
 
+    const DEFAULT_CARDS = [
+      { title: "회의실 예약 방법", icon: "🗓️", summary: "회의실 A/B/C 예약 절차 안내", content: "1. 사내 인트라넷 접속\n2. [시설 예약] 메뉴 클릭\n3. 원하는 날짜/시간/회의실 선택\n4. 사용 목적 입력 후 예약 완료\n\n※ 최대 4시간 단위 예약 가능\n※ 당일 취소는 오전 9시 이전에 해주세요", category: "space", pinned: false, updatedAt: "2025-05-10" },
+      { title: "주차 이용 안내", icon: "🚗", summary: "방문객/임직원 주차 안내", content: "• 임직원: B1~B2층 지정 구역 이용\n• 방문객: B3층 이용 (최대 3시간 무료)\n• 주차 등록은 1층 안내 데스크에서 진행\n\n※ 주차 공간 부족 시 인근 공영주차장 이용", category: "space", pinned: false, updatedAt: "2025-04-22" },
+      { title: "구두 청소 서비스", icon: "👟", summary: "매주 화/목 무료 구두 청소", content: "• 운영일: 매주 화요일, 목요일\n• 시간: 오전 9시 ~ 오후 5시\n• 위치: 1층 로비 우측 부스\n• 비용: 무료 (임직원 한정)\n\n※ 스웨이드, 뱀피 소재는 서비스 불가", category: "service", pinned: true, updatedAt: "2025-05-01" },
+      { title: "우편/택배 수령", icon: "📦", summary: "총무팀 경유 수령 안내", content: "• 수령 장소: 총무팀 (3층 302호)\n• 수령 시간: 평일 09:00 ~ 18:00\n• 도착 시 문자/메일로 개별 안내\n\n※ 개인 택배는 주 1회 일괄 수령 처리", category: "service", pinned: false, updatedAt: "2025-03-15" },
+      { title: "사내 카페테리아", icon: "☕", summary: "운영시간 및 이용 안내", content: "• 위치: 2층\n• 운영시간: 평일 08:00 ~ 19:00\n• 커피/음료: 임직원 월 10잔 무료\n• 식사: 점심 12:00~13:30 (할인 운영)\n\n※ 무료 음료는 앱에서 QR 코드 제시", category: "welfare", pinned: false, updatedAt: "2025-05-08" },
+      { title: "도서 대출 서비스", icon: "📚", summary: "사내 도서관 이용 방법", content: "• 위치: 4층 라운지\n• 대출 기간: 최대 2주\n• 대출 권수: 1인 3권\n• 신청: 인트라넷 [복지] > [도서 대출]\n\n※ 읽고 싶은 책 구매 신청도 가능", category: "welfare", pinned: false, updatedAt: "2025-02-20" },
+      { title: "2025년 하계 휴가 안내", icon: "🏖️", summary: "휴가 신청 기간 및 방법", content: "• 하계 휴가 기간: 7월 28일 ~ 8월 15일\n• 신청 기간: 6월 1일 ~ 6월 30일\n• 신청 방법: 인트라넷 > 근태 > 휴가 신청\n\n※ 팀 내 최대 50% 동시 사용 가능", category: "notice", pinned: true, updatedAt: "2025-05-12" },
+      { title: "사무소 Wi-Fi 안내", icon: "📶", summary: "네트워크 접속 정보", content: "• 임직원용: SEOUL-OFFICE-CORP\n  비밀번호: 총무팀 문의\n• 방문객용: SEOUL-OFFICE-GUEST\n  비밀번호: welcome2024\n\n※ 보안상 비밀번호는 정기적으로 변경됩니다", category: "notice", pinned: false, updatedAt: "2025-01-10" },
+    ];
+
     async function loadCards() {
       const snap = await getDocs(collection(db, "cards"));
+      if (snap.empty) {
+        for (const c of DEFAULT_CARDS) {
+          await addDoc(collection(db, "cards"), c);
+        }
+        return loadCards();
+      }
       state.cards = snap.docs.map(d => ({ _id: d.id, ...d.data() }));
     }
 
