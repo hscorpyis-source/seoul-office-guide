@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>서울사무소 가이드북</title>
+
+  <!-- Firebase SDK -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getFirestore, collection, getDocs, addDoc, updateDoc, deleteDoc, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    // ✅ 여기에 Firebase 설정키를 붙여넣으세요
+    const firebaseConfig = {
+     apiKey: "AIzaSyBa0r7SLyYACumy9_Kz7sxkYGGHkFAB_Ic",
+     authDomain: "seoul-office-guide.firebaseapp.com",
+     projectId: "seoul-office-guide",
+     storageBucket: "seoul-office-guide.firebasestorage.app",
+     messagingSenderId: "560009266906",
+     appId: "1:560009266906:web:bd84e1c99e03645b5807e3"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    const ADMIN_PASSWORD = "admin1234"; // ✅ 원하는 비밀번호로 변경하세요
+
+    const COLOR_PRESETS = [
+      { bg: "#E6F1FB", border: "#378ADD", text: "#0C447C", badge: "#185FA5" },
+      { bg: "#E1F5EE", border: "#1D9E75", text: "#085041", badge: "#0F6E56" },
+      { bg: "#FAEEDA", border: "#BA7517", text: "#633806", badge: "#854F0B" },
+      { bg: "#FCEBEB", border: "#E24B4A", text: "#791F1F", badge: "#A32D2D" },
+      { bg: "#EEEDFE", border: "#7F77DD", text: "#3C3489", badge: "#534AB7" },
+      { bg: "#FBEAF0", border: "#D4537E", text: "#72243E", badge: "#993556" },
+      { bg: "#EAF3DE", border: "#639922", text: "#27500A", badge: "#3B6D11" },
+    ];
+
+    const DEFAULT_CATEGORIES = [
+      { id: "space",   label: "공간/시설", colorIdx: 0 },
+      { id: "service", label: "서비스",    colorIdx: 1 },
+      { id: "welfare", label: "복지",      colorIdx: 2 },
+      { id: "notice",  label: "공지사항",  colorIdx: 3 },
+    ];
+
+    let state = {
+      categories: [],
+      cards: [],
+      isAdmin: false,
+      activeCategory: null,
+      selectedCard: null,
+      editCard: null,
+      showAddCard: false,
+      showCatManager: false,
+      showLogin: false,
+      searchQ: "",
+      pwInput: "",
+      pwError: false,
+      newCard: { title: "", icon: "📌", summary: "", content: "" },
+      newCat: { label: "", colorIdx: 0 },
+    };
+
+    function today() { return new Date().toISOString().slice(0, 10); }
+    function fmt(d) { return d ? d.replace(/-/g, ".") : ""; }
+    function col(catId) {
+      const cat = state.categories.find(c => c.id === catId);
+      return cat ? COLOR_PRESETS[cat.colorIdx % COLOR_PRESETS.length] : COLOR_PRESETS[0];
+    }
+    function catLabel(catId) {
+      return state.categories.find(c => c.id === catId)?.label || catId;
+    }
+
+    // ── Firestore helpers ──────────────────────────────────────
+    async function loadCategories() {
+      const snap = await getDocs(collection(db, "categories"));
+      if (snap.empty) {
+        for (const c of DEFAULT_CATEGORIES) {
+          await addDoc(collection(db, "categories"), c);
+        }
+        return loadCategories();
+      }
+      state.categories = snap.docs.map(d => ({ _id: d.id, ...d.data() }));
+      if (!state.activeCategory) state.activeCategory = state.categories[0]?.id || null;
+    }
+
+    async function loadCards() {
+      const snap = await getDocs(collection(db, "cards"));
+      state.cards = snap.docs.map(d => ({ _id: d.id, ...d.data() }));
+    }
+
+    async function saveCard(card) {
+      const { _id, ...data } = card;
+      data.updatedAt = today();
+      if (_id) {
+        await updateDoc(doc(db, "cards", _id), data);
+      } else {
+        await addDoc(collection(db, "cards"), data);
+      }
+      await loadCards();
+    }
+
+    async function removeCard(card) {
+      await deleteDoc(doc(db, "cards", card._id));
+      await loadCards();
+    }
+
+    async function saveCat(catData) {
+      await addDoc(collection(db, "categories"), catData);
+      await loadCategories();
+    }
+
+    async function removeCat(catId) {
+      const cat = state.categories.find(c => c.id === catId);
+      if (!cat) return;
+      await deleteDoc(doc(db, "categories", cat._id));
+      const toDelete = state.cards.filter(c => c.category === catId);
+      for (const c of toDelete) await deleteDoc(doc(db, "cards", c._id));
+      await loadCategories();
+      await loadCards();
+    }
+
+    // ── Render ─────────────────────────────────────────────────
+    function render() {
+      const s = state;
+      const activeCat = s.activeCategory || s.categories[0]?.id || "";
+      const allCards = s.cards;
+      const filteredCards = s.searchQ.trim()
+        ? allCards.filter(c => c.title?.includes(s.searchQ) || c.summary?.includes(s.searchQ) || c.content?.includes(s.searchQ))
+        : null;
+      const catCards = filteredCards || [...(allCards.filter(c => c.category === activeCat && c.pinned)), ...(allCards.filter(c => c.category === activeCat && !c.pinned))];
+
+      document.getElementById("app").innerHTML = `
+        <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;padding:1.5rem 1rem;max-width:720px;margin:0 auto;">
+
+          <!-- Header -->
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1.5rem;flex-wrap:wrap;gap:8px;">
+            <div>
+              <h1 style="margin:0;font-size:24px;font-weight:700;">🏢 서울사무소 가이드북</h1>
+              <p style="margin:4px 0 0;font-size:14px;font-weight:500;color:#666;">구성원을 위한 사무소 이용 안내</p>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+              ${s.isAdmin ? `<span style="font-size:12px;background:#E6F1FB;color:#185FA5;padding:3px 10px;border-radius:20px;font-weight:700;">관리자 모드</span>` : ""}
+              ${s.isAdmin ? `<button onclick="openCatManager()" style="${btnStyle("#f5f5f5","#555")}">카테고리 관리</button>` : ""}
+              <button onclick="toggleAdmin()" style="${btnStyle("#fff","#333")}">${s.isAdmin ? "로그아웃" : "관리자"}</button>
+            </div>
+          </div>
+
+          <!-- Search -->
+          <div style="position:relative;margin-bottom:1.25rem;">
+            <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:16px;color:#999;">🔍</span>
+            <input oninput="onSearch(this.value)" value="${s.searchQ}" placeholder="안내 내용 검색..." style="width:100%;padding:8px 10px 8px 34px;border:1px solid #ddd;border-radius:8px;font-size:14px;font-weight:500;box-sizing:border-box;" />
+          </div>
+
+          <!-- Category Tabs -->
+          ${!s.searchQ ? `<div style="display:flex;gap:8px;margin-bottom:1.25rem;flex-wrap:wrap;">
+            ${s.categories.map(cat => {
+              const active = activeCat === cat.id;
+              const c = COLOR_PRESETS[cat.colorIdx % COLOR_PRESETS.length];
+              return `<button onclick="setCategory('${cat.id}')" style="padding:7px 18px;border-radius:20px;font-size:14px;cursor:pointer;font-weight:${active?700:500};border:${active?`1.5px solid ${c.badge}`:"1px solid #ddd"};background:${active?c.bg:"#fff"};color:${active?c.text:"#666"};">${cat.label}</button>`;
+            }).join("")}
+          </div>` : `<p style="font-size:13px;font-weight:500;color:#888;margin-bottom:1rem;">"${s.searchQ}" 검색 결과 ${filteredCards.length}건</p>`}
+
+          <!-- Pinned banner -->
+          ${!s.searchQ && catCards.some(c => c.pinned) ? `
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">
+              <span style="font-size:13px;font-weight:700;color:${col(activeCat).badge};">📌 중요 공지</span>
+              <div style="flex:1;height:1px;background:${col(activeCat).border};"></div>
+            </div>` : ""}
+
+          <!-- Cards Grid -->
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-bottom:1.5rem;">
+            ${catCards.map(card => {
+              const c = col(card.category);
+              return `<div onclick="selectCard('${card._id}')" onmouseenter="this.style.background='${c.bg}'" onmouseleave="this.style.background='#fff'"
+                style="background:#fff;border:1px solid ${card.pinned ? c.badge : c.border};border-radius:12px;padding:1rem;cursor:pointer;position:relative;transition:background 0.15s;">
+                ${card.pinned ? `<span style="position:absolute;top:8px;right:8px;font-size:14px;">📌</span>` : ""}
+                <div style="font-size:40px;margin-bottom:10px;">${card.icon}</div>
+                <div style="font-weight:700;font-size:16px;color:#111;margin-bottom:4px;">${card.title}</div>
+                <div style="font-size:13px;font-weight:500;color:#666;line-height:1.5;margin-bottom:8px;">${card.summary}</div>
+                <div style="display:flex;justify-content:flex-end;">
+                  ${card.updatedAt ? `<span style="font-size:11px;color:#aaa;font-weight:500;">수정 ${fmt(card.updatedAt)}</span>` : ""}
+                </div>
+              </div>`;
+            }).join("")}
+            ${s.isAdmin && !s.searchQ ? `
+              <div onclick="openAddCard()" style="border:1.5px dashed #ccc;border-radius:12px;padding:1rem;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;color:#aaa;min-height:130px;">
+                <span style="font-size:32px;">＋</span>
+                <span style="font-size:13px;font-weight:600;">항목 추가</span>
+              </div>` : ""}
+          </div>
+
+          <!-- Modal: Detail -->
+          ${s.selectedCard && !s.editCard ? detailModal(s.selectedCard) : ""}
+          <!-- Modal: Edit -->
+          ${s.editCard ? editModal(s.editCard) : ""}
+          <!-- Modal: Add Card -->
+          ${s.showAddCard ? addCardModal() : ""}
+          <!-- Modal: Category Manager -->
+          ${s.showCatManager ? catManagerModal() : ""}
+          <!-- Modal: Login -->
+          ${s.showLogin ? loginModal() : ""}
+        </div>`;
+    }
+
+    function btnStyle(bg, color) {
+      return `font-size:13px;padding:6px 14px;border-radius:8px;border:1px solid #ddd;background:${bg};cursor:pointer;color:${color};font-weight:600;`;
+    }
+
+    function overlay(content) {
+      return `<div style="position:fixed;inset:0;background:rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;z-index:100;padding:1rem;">
+        <div style="background:#ffffff;border-radius:16px;padding:1.5rem;max-width:480px;width:100%;max-height:85vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.2);">
+          ${content}
+        </div>
+      </div>`;
+    }
+
+    function detailModal(card) {
+      const c = col(card.category);
+      return overlay(`
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1rem;">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <span style="font-size:44px;">${card.icon}</span>
+            <div>
+              <h2 style="margin:0;font-size:18px;font-weight:700;">${card.title}</h2>
+              <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:4px;">
+                <span style="font-size:12px;background:${c.bg};color:${c.text};padding:2px 8px;border-radius:10px;font-weight:700;">${catLabel(card.category)}</span>
+                ${card.pinned ? `<span style="font-size:12px;background:#FAEEDA;color:#633806;padding:2px 8px;border-radius:10px;font-weight:700;">📌 중요</span>` : ""}
+                ${card.updatedAt ? `<span style="font-size:12px;color:#aaa;font-weight:500;">수정 ${fmt(card.updatedAt)}</span>` : ""}
+              </div>
+            </div>
+          </div>
+          <button onclick="closeDetail()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#999;">✕</button>
+        </div>
+        <p style="font-size:13px;font-weight:500;color:#666;margin-bottom:1rem;">${card.summary}</p>
+        <div style="background:#f7f7f7;border-radius:10px;padding:1rem;font-size:14px;font-weight:500;line-height:1.8;white-space:pre-line;color:#222;">${card.content}</div>
+        ${state.isAdmin ? `
+          <div style="display:flex;gap:8px;margin-top:1rem;flex-wrap:wrap;">
+            <button onclick="openEdit()" style="flex:1;padding:9px;border-radius:8px;border:1px solid #ddd;background:#f5f5f5;cursor:pointer;font-size:13px;font-weight:600;">✏️ 수정</button>
+            <button onclick="togglePin()" style="flex:1;padding:9px;border-radius:8px;border:1px solid ${card.pinned?"#BA7517":"#ddd"};background:${card.pinned?"#FAEEDA":"#f5f5f5"};cursor:pointer;font-size:13px;font-weight:600;color:${card.pinned?"#633806":"#333"};">
+              ${card.pinned ? "📌 고정 해제" : "📌 상단 고정"}
+            </button>
+            <button onclick="deleteCard()" style="flex:1;padding:9px;border-radius:8px;border:1px solid #E24B4A;background:#FCEBEB;cursor:pointer;font-size:13px;font-weight:600;color:#A32D2D;">🗑️ 삭제</button>
+          </div>` : ""}
+      `);
+    }
+
+    function inputRow(label, key, value, ph = "") {
+      return `<div><label style="font-size:13px;font-weight:600;color:#666;">${label}</label>
+        <input oninput="updateEdit('${key}',this.value)" value="${(value||"").replace(/"/g,'&quot;')}" placeholder="${ph}"
+          style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:8px;font-size:14px;font-weight:500;box-sizing:border-box;margin-bottom:10px;" /></div>`;
+    }
+
+    function editModal(card) {
+      return overlay(`
+        <h2 style="margin:0 0 1rem;font-size:18px;font-weight:700;">항목 수정</h2>
+        ${inputRow("아이콘","icon",card.icon)}
+        ${inputRow("제목","title",card.title)}
+        ${inputRow("요약","summary",card.summary)}
+        <label style="font-size:13px;font-weight:600;color:#666;">내용</label>
+        <textarea oninput="updateEdit('content',this.value)" style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:8px;font-size:14px;font-weight:500;box-sizing:border-box;min-height:130px;resize:vertical;margin-bottom:10px;">${card.content||""}</textarea>
+        <div style="display:flex;gap:8px;">
+          <button onclick="saveEdit()" style="flex:1;padding:10px;border-radius:8px;background:#185FA5;color:#fff;border:none;cursor:pointer;font-size:14px;font-weight:700;">저장</button>
+          <button onclick="cancelEdit()" style="flex:1;padding:10px;border-radius:8px;border:1px solid #ddd;background:#f5f5f5;cursor:pointer;font-size:14px;font-weight:600;">취소</button>
+        </div>
+      `);
+    }
+
+    function addCardModal() {
+      const nc = state.newCard;
+      return overlay(`
+        <h2 style="margin:0 0 1rem;font-size:18px;font-weight:700;">새 항목 추가 — ${catLabel(state.activeCategory)}</h2>
+        ${inputRow("아이콘 (이모지)","newIcon",nc.icon)}
+        ${inputRow("제목","newTitle",nc.title,"예: 헬스장 이용 안내")}
+        ${inputRow("요약 (카드에 표시)","newSummary",nc.summary,"한 줄 요약")}
+        <label style="font-size:13px;font-weight:600;color:#666;">상세 내용</label>
+        <textarea oninput="updateNew('content',this.value)" style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:8px;font-size:14px;font-weight:500;box-sizing:border-box;min-height:130px;resize:vertical;margin-bottom:10px;">${nc.content||""}</textarea>
+        <div style="display:flex;gap:8px;">
+          <button onclick="addCard()" ${!nc.title?"disabled":""} style="flex:1;padding:10px;border-radius:8px;background:${nc.title?"#185FA5":"#eee"};color:${nc.title?"#fff":"#aaa"};border:none;cursor:${nc.title?"pointer":"default"};font-size:14px;font-weight:700;">추가</button>
+          <button onclick="closeAddCard()" style="flex:1;padding:10px;border-radius:8px;border:1px solid #ddd;background:#f5f5f5;cursor:pointer;font-size:14px;font-weight:600;">취소</button>
+        </div>
+      `);
+    }
+
+    function catManagerModal() {
+      const nc = state.newCat;
+      return overlay(`
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem;">
+          <h2 style="margin:0;font-size:18px;font-weight:700;">카테고리 관리</h2>
+          <button onclick="closeCatManager()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#999;">✕</button>
+        </div>
+        <div style="margin-bottom:1.25rem;">
+          ${state.categories.map(cat => `
+            <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;background:#f7f7f7;margin-bottom:8px;">
+              <div style="width:14px;height:14px;border-radius:4px;background:${COLOR_PRESETS[cat.colorIdx%COLOR_PRESETS.length].badge};flex-shrink:0;"></div>
+              <span style="flex:1;font-weight:600;font-size:14px;">${cat.label}</span>
+              <span style="font-size:12px;color:#aaa;font-weight:500;">${state.cards.filter(c=>c.category===cat.id).length}개 항목</span>
+              <button onclick="deleteCat('${cat.id}')" style="background:none;border:none;font-size:16px;cursor:pointer;color:#E24B4A;">🗑️</button>
+            </div>`).join("")}
+        </div>
+        <div style="border-top:1px solid #eee;padding-top:1rem;">
+          <p style="margin:0 0 10px;font-size:14px;font-weight:700;">새 카테고리 추가</p>
+          <label style="font-size:13px;font-weight:600;color:#666;">카테고리 이름</label>
+          <input oninput="updateNewCat('label',this.value)" value="${nc.label}" placeholder="예: 식당/카페"
+            style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:8px;font-size:14px;font-weight:500;box-sizing:border-box;margin-bottom:10px;" />
+          <label style="font-size:13px;font-weight:600;color:#666;">색상 선택</label>
+          <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
+            ${COLOR_PRESETS.map((c,i) => `
+              <div onclick="updateNewCat('colorIdx',${i})" style="width:28px;height:28px;border-radius:8px;background:${c.badge};cursor:pointer;border:${nc.colorIdx===i?"2.5px solid #333":"2.5px solid transparent"};"></div>`).join("")}
+          </div>
+          <div style="padding:8px 12px;border-radius:10px;background:${COLOR_PRESETS[nc.colorIdx].bg};border:1px solid ${COLOR_PRESETS[nc.colorIdx].border};margin-bottom:12px;">
+            <span style="font-weight:700;font-size:14px;color:${COLOR_PRESETS[nc.colorIdx].text};">${nc.label||"미리보기"}</span>
+          </div>
+          <button onclick="addCategory()" ${!nc.label.trim()?"disabled":""} style="width:100%;padding:10px;border-radius:8px;background:${nc.label.trim()?"#185FA5":"#eee"};color:${nc.label.trim()?"#fff":"#aaa"};border:none;cursor:${nc.label.trim()?"pointer":"default"};font-size:14px;font-weight:700;">카테고리 추가</button>
+        </div>
+      `);
+    }
+
+    function loginModal() {
+      return `<div style="position:fixed;inset:0;background:rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;z-index:120;padding:1rem;">
+        <div style="background:#ffffff;border-radius:16px;padding:1.5rem;max-width:320px;width:100%;box-shadow:0 8px 32px rgba(0,0,0,0.2);">
+          <h2 style="margin:0 0 1rem;font-size:18px;font-weight:700;">관리자 로그인</h2>
+          <input id="pw-input" type="password" placeholder="비밀번호 입력" value="${state.pwInput}"
+            oninput="state.pwInput=this.value;state.pwError=false;"
+            onkeydown="if(event.key==='Enter')doLogin()"
+            style="width:100%;padding:8px 10px;border:1px solid ${state.pwError?"#E24B4A":"#ddd"};border-radius:8px;font-size:14px;font-weight:500;box-sizing:border-box;margin-bottom:${state.pwError?4:10}px;" />
+          ${state.pwError ? `<p style="color:#A32D2D;font-size:13px;font-weight:600;margin:0 0 10px;">비밀번호가 틀렸습니다</p>` : ""}
+          <div style="display:flex;gap:8px;">
+            <button onclick="doLogin()" style="flex:1;padding:10px;border-radius:8px;background:#185FA5;color:#fff;border:none;cursor:pointer;font-size:14px;font-weight:700;">로그인</button>
+            <button onclick="closeLogin()" style="flex:1;padding:10px;border-radius:8px;border:1px solid #ddd;background:#f5f5f5;cursor:pointer;font-size:14px;font-weight:600;">취소</button>
+          </div>
+          <p style="font-size:12px;color:#aaa;margin-top:10px;text-align:center;">초기 비밀번호: admin1234</p>
+        </div>
+      </div>`;
+    }
+
+    // ── Event handlers (global) ────────────────────────────────
+    window.toggleAdmin  = () => { state.isAdmin ? (state.isAdmin=false, render()) : (state.showLogin=true, render()); };
+    window.doLogin      = () => {
+      if (state.pwInput === ADMIN_PASSWORD) { state.isAdmin=true; state.showLogin=false; state.pwInput=""; state.pwError=false; }
+      else state.pwError = true;
+      render();
+    };
+    window.closeLogin   = () => { state.showLogin=false; state.pwInput=""; state.pwError=false; render(); };
+    window.onSearch     = (v) => { state.searchQ=v; render(); };
+    window.setCategory  = (id) => { state.activeCategory=id; render(); };
+    window.selectCard   = (id) => { state.selectedCard=state.cards.find(c=>c._id===id)||null; render(); };
+    window.closeDetail  = () => { state.selectedCard=null; render(); };
+    window.openEdit     = () => { state.editCard={...state.selectedCard}; render(); };
+    window.cancelEdit   = () => { state.editCard=null; render(); };
+    window.updateEdit   = (k,v) => { state.editCard[k]=v; };
+    window.saveEdit     = async () => { await saveCard(state.editCard); state.editCard=null; state.selectedCard=null; render(); };
+    window.togglePin    = async () => { const c={...state.selectedCard,pinned:!state.selectedCard.pinned}; await saveCard(c); state.selectedCard=c; render(); };
+    window.deleteCard   = async () => { if(!confirm("삭제할까요?"))return; await removeCard(state.selectedCard); state.selectedCard=null; render(); };
+    window.openAddCard  = () => { state.showAddCard=true; render(); };
+    window.closeAddCard = () => { state.showAddCard=false; render(); };
+    window.updateNew    = (k,v) => { state.newCard[k]=v; };
+    window.addCard      = async () => {
+      const nc = state.newCard;
+      if (!nc.title) return;
+      await saveCard({ title:nc.title, icon:nc.icon||"📌", summary:nc.summary, content:nc.content, category:state.activeCategory, pinned:false });
+      state.newCard={ title:"", icon:"📌", summary:"", content:"" };
+      state.showAddCard=false;
+      render();
+    };
+    window.updateNewCat  = (k,v) => { state.newCat[k]=k==="colorIdx"?parseInt(v):v; render(); };
+    window.openCatManager  = () => { state.showCatManager=true; render(); };
+    window.closeCatManager = () => { state.showCatManager=false; render(); };
+    window.addCategory  = async () => {
+      const nc = state.newCat;
+      if (!nc.label.trim()) return;
+      const id = nc.label.trim().replace(/\s+/g,"_") + "_" + Date.now();
+      await saveCat({ id, label:nc.label.trim(), colorIdx:nc.colorIdx });
+      state.newCat={ label:"", colorIdx:0 };
+      render();
+    };
+    window.deleteCat = async (catId) => {
+      if (!confirm(`"${catLabel(catId)}" 카테고리를 삭제할까요?\n포함된 항목도 모두 삭제됩니다.`)) return;
+      await removeCat(catId);
+      if (state.activeCategory===catId) state.activeCategory=state.categories[0]?.id||null;
+      render();
+    };
+
+    // input 이벤트에서 updateEdit의 newIcon/newTitle/newSummary 처리
+    window.updateEdit = (k, v) => {
+      if (k.startsWith("new")) {
+        const key = k.replace("new","").toLowerCase();
+        state.newCard[key] = v;
+      } else if (state.editCard) {
+        state.editCard[k] = v;
+      }
+    };
+
+    // ── Init ──────────────────────────────────────────────────
+    async function init() {
+      document.getElementById("app").innerHTML = `<p style="padding:2rem;text-align:center;color:#888;font-size:15px;">불러오는 중...</p>`;
+      await loadCategories();
+      await loadCards();
+      render();
+    }
+
+    init();
+  </script>
+</head>
+<body style="margin:0;background:#f9f9f9;">
+  <div id="app"></div>
+</body>
+</html>
