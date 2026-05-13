@@ -11,7 +11,7 @@
 
     // ✅ 여기에 Firebase 설정키를 붙여넣으세요
     const firebaseConfig = {
-    apiKey: "AIzaSyBa0r7SLyYACumy9_Kz7sxkYGGHkFAB_Ic",
+     apiKey: "AIzaSyBa0r7SLyYACumy9_Kz7sxkYGGHkFAB_Ic",
   authDomain: "seoul-office-guide.firebaseapp.com",
   projectId: "seoul-office-guide",
   storageBucket: "seoul-office-guide.firebasestorage.app",
@@ -159,6 +159,7 @@
               <h1 style="margin:0;font-size:24px;font-weight:700;">🏢 서울사무소 가이드북</h1>
               <p style="margin:4px 0 0;font-size:14px;font-weight:500;color:#666;">구성원을 위한 사무소 이용 안내</p>
             </div>
+          </div>
             <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
               ${s.isAdmin ? `<span style="font-size:12px;background:#E6F1FB;color:#185FA5;padding:3px 10px;border-radius:20px;font-weight:700;">관리자 모드</span>` : ""}
               ${s.isAdmin ? `<button onclick="openCatManager()" style="${btn()}">카테고리 관리</button>` : ""}
@@ -168,23 +169,27 @@
 
           <div style="position:relative;margin-bottom:1.25rem;">
             <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:16px;">🔍</span>
-            <input oninput="onSearch(this.value)" value="${s.searchQ}" placeholder="안내 내용 검색..."
+            <input oninput="onSearch(this.value)" placeholder="안내 내용 검색..."
               style="width:100%;padding:8px 10px 8px 34px;border:1px solid #ddd;border-radius:8px;font-size:14px;font-weight:500;box-sizing:border-box;" />
           </div>
 
+          <div id="tabs-section">
           ${!s.searchQ ? `<div style="display:flex;gap:8px;margin-bottom:1.25rem;flex-wrap:wrap;">
             ${s.categories.map(cat => {
               const active = activeCat === cat.id;
               const c = COLOR_PRESETS[cat.colorIdx % COLOR_PRESETS.length];
               return `<button onclick="setCategory('${cat.id}')" style="padding:7px 18px;border-radius:20px;font-size:14px;cursor:pointer;font-weight:${active?700:500};border:${active?`1.5px solid ${c.badge}`:"1px solid #ddd"};background:${active?c.bg:"#fff"};color:${active?c.text:"#666"};">${cat.label}</button>`;
             }).join("")}
-          </div>` : `<p style="font-size:13px;font-weight:500;color:#888;margin-bottom:1rem;">"${s.searchQ}" 검색 결과 ${filteredCards.length}건</p>`}
+          </div>` : ""}
+          </div>
 
+          <div id="cards-section">
           ${!s.searchQ && catCards.some(c => c.pinned) ? `
             <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">
               <span style="font-size:13px;font-weight:700;color:${col(activeCat).badge};">📌 중요 공지</span>
               <div style="flex:1;height:1px;background:${col(activeCat).border};"></div>
             </div>` : ""}
+          ${s.searchQ ? `<p style="font-size:13px;font-weight:500;color:#888;margin-bottom:1rem;">"${s.searchQ}" 검색 결과 ${filteredCards ? filteredCards.length : 0}건</p>` : ""}
 
           <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-bottom:1.5rem;">
             ${catCards.map(card => {
@@ -370,7 +375,57 @@
       render();
     };
     window.closeLogin     = () => { state.showLogin=false; state.pwInput=""; state.pwError=false; render(); };
-    window.onSearch       = (v) => { state.searchQ=v; render(); };
+    function cardsHTML() {
+      const s = state;
+      const activeCat = s.activeCategory || s.categories[0]?.id || "";
+      const filteredCards = s.searchQ.trim()
+        ? s.cards.filter(c => c.title?.includes(s.searchQ) || c.summary?.includes(s.searchQ) || c.content?.includes(s.searchQ))
+        : null;
+      const catCards = filteredCards || [
+        ...s.cards.filter(c => c.category === activeCat && c.pinned),
+        ...s.cards.filter(c => c.category === activeCat && !c.pinned)
+      ];
+      return `
+        ${!s.searchQ && catCards.some(c => c.pinned) ? `
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">
+            <span style="font-size:13px;font-weight:700;color:${col(activeCat).badge};">📌 중요 공지</span>
+            <div style="flex:1;height:1px;background:${col(activeCat).border};"></div>
+          </div>` : ""}
+        ${s.searchQ ? `<p style="font-size:13px;font-weight:500;color:#888;margin-bottom:1rem;">"${s.searchQ}" 검색 결과 ${filteredCards ? filteredCards.length : 0}건</p>` : ""}
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-bottom:1.5rem;">
+          ${catCards.map(card => {
+            const c = col(card.category);
+            return `<div onclick="selectCard('${card._id}')"
+              onmouseenter="this.style.background='${c.bg}'" onmouseleave="this.style.background='#fff'"
+              style="background:#fff;border:1px solid ${card.pinned?c.badge:c.border};border-radius:12px;overflow:hidden;cursor:pointer;position:relative;transition:background 0.15s;">
+              ${card.imageUrl ? `<img src="${card.imageUrl}" style="width:100%;height:120px;object-fit:cover;display:block;" />` : ""}
+              <div style="padding:1rem;">
+                ${card.pinned ? `<span style="position:absolute;top:8px;right:8px;font-size:14px;">📌</span>` : ""}
+                <div style="font-size:40px;margin-bottom:10px;">${card.icon}</div>
+                <div style="font-weight:700;font-size:16px;color:#111;margin-bottom:4px;">${card.title}</div>
+                <div style="font-size:13px;font-weight:500;color:#666;line-height:1.5;margin-bottom:8px;">${card.summary}</div>
+                <div style="display:flex;justify-content:flex-end;">
+                  ${card.updatedAt ? `<span style="font-size:11px;color:#aaa;font-weight:500;">수정 ${fmt(card.updatedAt)}</span>` : ""}
+                </div>
+              </div>
+            </div>`;
+          }).join("")}
+          ${s.isAdmin && !s.searchQ ? `
+            <div onclick="openAddCard()" style="border:1.5px dashed #ccc;border-radius:12px;padding:1rem;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;color:#aaa;min-height:130px;">
+              <span style="font-size:32px;">＋</span>
+              <span style="font-size:13px;font-weight:600;">항목 추가</span>
+            </div>` : ""}
+        </div>`;
+    }
+
+    window.onSearch = (v) => {
+      state.searchQ = v;
+      // 카드 영역만 업데이트 → 입력창 IME 조합 유지
+      const tabsEl = document.getElementById("tabs-section");
+      const cardsEl = document.getElementById("cards-section");
+      if (tabsEl) tabsEl.style.display = v ? "none" : "";
+      if (cardsEl) cardsEl.innerHTML = cardsHTML();
+    };
     window.setCategory    = (id) => { state.activeCategory=id; render(); };
     window.selectCard     = (id) => { state.selectedCard=state.cards.find(c=>c._id===id)||null; render(); };
     window.closeDetail    = () => { state.selectedCard=null; render(); };
