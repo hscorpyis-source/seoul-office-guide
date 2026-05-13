@@ -12,7 +12,7 @@
 
     // ✅ 여기에 Firebase 설정키를 붙여넣으세요
     const firebaseConfig = {
-     apiKey: "AIzaSyBa0r7SLyYACumy9_Kz7sxkYGGHkFAB_Ic",
+   apiKey: "AIzaSyBa0r7SLyYACumy9_Kz7sxkYGGHkFAB_Ic",
   authDomain: "seoul-office-guide.firebaseapp.com",
   projectId: "seoul-office-guide",
   storageBucket: "seoul-office-guide.firebasestorage.app",
@@ -336,7 +336,7 @@
         <div style="background:#ffffff;border-radius:16px;padding:1.5rem;max-width:320px;width:100%;box-shadow:0 8px 32px rgba(0,0,0,0.2);">
           <h2 style="margin:0 0 1rem;font-size:18px;font-weight:700;">관리자 로그인</h2>
           <input id="pw-input" type="password" placeholder="비밀번호 입력" value="${state.pwInput}"
-            oninput="state.pwInput=this.value;state.pwError=false;"
+            oninput="setPwInput(this.value)"
             onkeydown="if(event.key==='Enter')doLogin()"
             style="width:100%;padding:8px 10px;border:1px solid ${state.pwError?"#E24B4A":"#ddd"};border-radius:8px;font-size:14px;font-weight:500;box-sizing:border-box;margin-bottom:${state.pwError?4:10}px;" />
           ${state.pwError ? `<p style="color:#A32D2D;font-size:13px;font-weight:600;margin:0 0 10px;">비밀번호가 틀렸습니다</p>` : ""}
@@ -357,6 +357,7 @@
       render();
     };
     window.closeLogin   = () => { state.showLogin=false; state.pwInput=""; state.pwError=false; render(); };
+    window.setPwInput   = (v) => { state.pwInput = v; state.pwError = false; };
     window.onSearch     = (v) => { state.searchQ=v; render(); };
     window.setCategory  = (id) => { state.activeCategory=id; render(); };
     window.selectCard   = (id) => { state.selectedCard=state.cards.find(c=>c._id===id)||null; render(); };
