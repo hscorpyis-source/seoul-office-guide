@@ -152,7 +152,7 @@ apiKey: "AIzaSyBa0r7SLyYACumy9_Kz7sxkYGGHkFAB_Ic",
       ];
 
       document.getElementById("app").innerHTML = `
-        <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;padding:1.5rem 1rem;max-width:540px;margin:0 auto;">
+        <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;padding:1.5rem 0;">
 
           <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1.5rem;flex-wrap:wrap;gap:8px;">
             <div>
@@ -515,6 +515,8 @@ apiKey: "AIzaSyBa0r7SLyYACumy9_Kz7sxkYGGHkFAB_Ic",
   </script>
 </head>
 <body style="margin:0;background:#f9f9f9;">
-  <div id="app"></div>
+  <div style="max-width:560px;margin:0 auto;padding:0 16px;box-sizing:border-box;">
+    <div id="app"></div>
+  </div>
 </body>
 </html>
